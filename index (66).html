@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#0a0a0f">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="FokusPause">
+    <meta name="description" content="Bildschirmzeit Manager - Timer mit automatischer Pausenerinnerung">
+    <meta name="mobile-web-app-capable" content="yes">
+    
+    <!-- Open Graph -->
+    <meta property="og:title" content="FokusPause - Bildschirmzeit Manager">
+    <meta property="og:description" content="Timer mit automatischer Pausenerinnerung für bessere Bildschirmzeit-Balance">
+    <meta property="og:type" content="website">
+    
+    <title>FokusPause - Bildschirmzeit Manager</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⏱️</text></svg>">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%230a0a0f' width='100' height='100'/><text y='.9em' font-size='90' x='5'>⏱️</text></svg>">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-dark: #0a0a0f;
+            --bg-card: #12121a;
+            --accent-cyan: #00f5d4;
+            --accent-magenta: #f72585;
+            --accent-yellow: #fee440;
+            --text-primary: #ffffff;
+            --text-secondary: #8a8a9a;
+            --glass: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --safe-top: env(safe-area-inset-top, 0px);
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
+            --safe-left: env(safe-area-inset-left, 0px);
+            --safe-right: env(safe-area-inset-right, 0px);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html {
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            font-family: 'Syne', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100%;
+            height: 100%;
+            overflow-x: hidden;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
+        }
+
+        /* Animated background */
+        .bg-gradient {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .bg-gradient::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: 
+                radial-gradient(ellipse at 20% 20%, rgba(0, 245, 212, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(247, 37, 133, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 50%, rgba(254, 228, 64, 0.03) 0%, transparent 50%);
+            animation: bgMove 20s ease-in-out infinite;
+        }
+
+        @keyframes bgMove {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            33% { transform: translate(-5%, -5%) rotate(5deg); }
+            66% { transform: translate(5%, 5%) rotate(-5deg); }
+        }
+
+        /* Noise texture overlay */
+        .noise {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+            opacity: 0.03;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+        }
+
+        /* Main container */
+        .container {
+            position: relative;
+            z-index: 2;
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 24px 16px;
+            min-height: 100%;
+            display: flex;
+            flex-direction: column;
+            padding-top: calc(24px + var(--safe-top));
+            padding-bottom: calc(24px + var(--safe-bottom));
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 32px;
+            flex-shrink: 0;
+        }
+
+        .logo {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: var(--accent-cyan);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .logo::before, .logo::after {
+            content: '';
+            width: 24px;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--accent-cyan));
+        }
+
+        .logo::after {
+            background: linear-gradient(90deg, var(--accent-cyan), transparent);
+        }
+
+        .title {
+            font-size: clamp(1.8rem, 7vw, 2.8rem);
+            font-weight: 800;
+            line-height: 1.1;
+            background: linear-gradient(135deg, var(--text-primary) 0%, var(--text-secondary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* Timer display */
+        .timer-card {
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 32px 20px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            flex-shrink: 0;
+        }
+
+        .timer-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--accent-cyan), transparent);
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 16px;
+            border-radius: 100px;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 24px;
+            transition: all 0.4s ease;
+        }
+
+        .status-badge.active {
+            background: rgba(0, 245, 212, 0.1);
+            color: var(--accent-cyan);
+            border: 1px solid rgba(0, 245, 212, 0.3);
+        }
+
+        .status-badge.paused {
+            background: rgba(254, 228, 64, 0.1);
+            color: var(--accent-yellow);
+            border: 1px solid rgba(254, 228, 64, 0.3);
+        }
+
+        .status-badge.locked {
+            background: rgba(247, 37, 133, 0.1);
+            color: var(--accent-magenta);
+            border: 1px solid rgba(247, 37, 133, 0.3);
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(0.8); }
+        }
+
+        .timer-display {
+            font-family: 'Space Mono', monospace;
+            font-size: clamp(3.5rem, 18vw, 5.5rem);
+            font-weight: 700;
+            letter-spacing: -2px;
+            margin-bottom: 8px;
+            transition: color 0.4s ease;
+            line-height: 1;
+        }
+
+        .timer-display.active { color: var(--text-primary); }
+        .timer-display.warning { color: var(--accent-yellow); }
+        .timer-display.critical {
+            color: var(--accent-magenta);
+            animation: shake 0.5s ease-in-out infinite;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-2px); }
+            75% { transform: translateX(2px); }
+        }
+
+        .timer-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        /* Progress bar */
+        .progress-container {
+            position: relative;
+            width: 100%;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 100px;
+            margin: 28px 0;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            border-radius: 100px;
+            transition: width 1s linear, background 0.4s ease;
+            background: linear-gradient(90deg, var(--accent-cyan), var(--accent-magenta));
+        }
+
+        .progress-bar.warning {
+            background: linear-gradient(90deg, var(--accent-yellow), var(--accent-magenta));
+        }
+
+        /* Controls */
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .btn {
+            font-family: 'Syne', sans-serif;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            padding: 14px 20px;
+            border-radius: 14px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            touch-action: manipulation;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        .btn:active { transform: scale(0.97); }
+
+        .btn-primary {
+            background: var(--accent-cyan);
+            color: var(--bg-dark);
+            grid-column: 1 / -1;
+        }
+
+        .btn-primary:hover {
+            box-shadow: 0 8px 30px rgba(0, 245, 212, 0.25);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1px solid var(--glass-border);
+        }
+
+        .btn-secondary:hover {
+            background: var(--glass);
+            color: var(--text-primary);
+        }
+
+        .btn-fullscreen { display: none; }
+
+        /* Settings */
+        .settings {
+            margin-top: 24px;
+            padding: 20px;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            flex-shrink: 0;
+        }
+
+        .settings-title {
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+        }
+
+        .setting-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 0;
+            border-bottom: 1px solid var(--glass-border);
+            gap: 12px;
+        }
+
+        .setting-row:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .setting-label {
+            font-size: 14px;
+            color: var(--text-primary);
+            flex: 1;
+        }
+
+        .setting-input {
+            font-family: 'Space Mono', monospace;
+            font-size: 15px;
+            width: 70px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 1px solid var(--glass-border);
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            text-align: center;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        .setting-input:focus {
+            outline: none;
+            border-color: var(--accent-cyan);
+        }
+
+        /* Custom toggle */
+        .toggle {
+            position: relative;
+            width: 48px;
+            height: 28px;
+            flex-shrink: 0;
+        }
+
+        .toggle input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--bg-dark);
+            border: 1px solid var(--glass-border);
+            border-radius: 28px;
+            transition: 0.3s;
+        }
+
+        .toggle-slider::before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 3px;
+            bottom: 3px;
+            background: var(--text-secondary);
+            border-radius: 50%;
+            transition: 0.3s;
+        }
+
+        .toggle input:checked + .toggle-slider {
+            background: rgba(0, 245, 212, 0.2);
+            border-color: var(--accent-cyan);
+        }
+
+        .toggle input:checked + .toggle-slider::before {
+            transform: translateX(20px);
+            background: var(--accent-cyan);
+        }
+
+        /* Lock screen */
+        .lock-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--bg-dark);
+            z-index: 1000;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 40px 24px;
+            padding-top: calc(40px + var(--safe-top));
+            padding-bottom: calc(40px + var(--safe-bottom));
+        }
+
+        .lock-screen.active { display: flex; }
+
+        .lock-screen::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(ellipse at center, rgba(247, 37, 133, 0.15) 0%, transparent 70%);
+            animation: lockPulse 4s ease-in-out infinite;
+        }
+
+        @keyframes lockPulse {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+
+        .lock-icon {
+            width: 100px;
+            height: 100px;
+            border: 3px solid var(--accent-magenta);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 32px;
+            position: relative;
+            animation: lockBreathe 3s ease-in-out infinite;
+        }
+
+        @keyframes lockBreathe {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .lock-icon svg {
+            width: 40px;
+            height: 40px;
+            stroke: var(--accent-magenta);
+        }
+
+        .lock-title {
+            font-size: clamp(1.8rem, 8vw, 3rem);
+            font-weight: 800;
+            margin-bottom: 12px;
+            color: var(--text-primary);
+            position: relative;
+        }
+
+        .lock-subtitle {
+            font-size: 15px;
+            color: var(--text-secondary);
+            margin-bottom: 40px;
+            max-width: 320px;
+            line-height: 1.5;
+        }
+
+        .lock-timer {
+            font-family: 'Space Mono', monospace;
+            font-size: clamp(3rem, 12vw, 4.5rem);
+            font-weight: 700;
+            color: var(--accent-magenta);
+            margin-bottom: 12px;
+            position: relative;
+        }
+
+        .lock-timer-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            letter-spacing: 3px;
+            text-transform: uppercase;
+        }
+
+        .emergency-unlock {
+            position: absolute;
+            bottom: calc(32px + var(--safe-bottom));
+            font-size: 12px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            opacity: 0.4;
+            transition: opacity 0.3s;
+            padding: 12px;
+        }
+
+        .emergency-unlock:hover,
+        .emergency-unlock:active { opacity: 0.8; }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: calc(24px + var(--safe-bottom));
+            left: 16px;
+            right: 16px;
+            max-width: 400px;
+            margin: 0 auto;
+            background: var(--bg-card);
+            border: 1px solid var(--glass-border);
+            padding: 14px 20px;
+            border-radius: 14px;
+            font-size: 13px;
+            color: var(--text-primary);
+            z-index: 100;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        /* Install prompt */
+        .install-prompt {
+            display: none;
+            margin-top: 20px;
+            padding: 16px;
+            background: rgba(0, 245, 212, 0.05);
+            border: 1px solid rgba(0, 245, 212, 0.2);
+            border-radius: 16px;
+            text-align: center;
+        }
+
+        .install-prompt.show { display: block; }
+
+        .install-prompt p {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+        }
+
+        .install-prompt .btn {
+            padding: 10px 20px;
+            font-size: 12px;
+        }
+
+        /* Footer */
+        .footer {
+            margin-top: auto;
+            padding-top: 24px;
+            text-align: center;
+            font-size: 11px;
+            color: var(--text-secondary);
+            opacity: 0.5;
+        }
+
+        /* Desktop */
+        @media (min-width: 600px) {
+            .container {
+                padding: 40px 24px;
+                justify-content: center;
+            }
+
+            .timer-card {
+                padding: 48px 40px;
+                border-radius: 32px;
+            }
+
+            .settings {
+                padding: 28px;
+                border-radius: 24px;
+            }
+
+            .btn-fullscreen { display: block; }
+        }
+
+        /* Prevent pull-to-refresh */
+        @media (pointer: coarse) {
+            body { overscroll-behavior-y: contain; }
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root { color-scheme: dark; }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-gradient"></div>
+    <div class="noise"></div>
+
+    <div class="container">
+        <header class="header">
+            <div class="logo">FokusPause</div>
+            <h1 class="title">Deine Zeit.<br>Dein Fokus.</h1>
+        </header>
+
+        <div class="timer-card">
+            <div class="status-badge active" id="statusBadge">
+                <span class="status-dot"></span>
+                <span id="statusText">Bereit</span>
+            </div>
+
+            <div class="timer-display active" id="timerDisplay">90:00</div>
+            <div class="timer-label">Verbleibende Zeit</div>
+
+            <div class="progress-container">
+                <div class="progress-bar" id="progressBar" style="width: 100%"></div>
+            </div>
+
+            <div class="controls">
+                <button class="btn btn-primary" id="startBtn">Starten</button>
+                <button class="btn btn-secondary" id="resetBtn">Reset</button>
+                <button class="btn btn-secondary btn-fullscreen" id="fullscreenBtn">Vollbild</button>
+            </div>
+        </div>
+
+        <div class="settings">
+            <div class="settings-title">Einstellungen</div>
+            <div class="setting-row">
+                <span class="setting-label">Arbeitszeit (Min)</span>
+                <input type="number" class="setting-input" id="workTime" value="90" min="1" max="480" inputmode="numeric">
+            </div>
+            <div class="setting-row">
+                <span class="setting-label">Pausenzeit (Min)</span>
+                <input type="number" class="setting-input" id="breakTime" value="10" min="1" max="60" inputmode="numeric">
+            </div>
+            <div class="setting-row">
+                <span class="setting-label">Auto-Start bei Fokus</span>
+                <label class="toggle">
+                    <input type="checkbox" id="autoStart" checked>
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+            <div class="setting-row">
+                <span class="setting-label">Sound</span>
+                <label class="toggle">
+                    <input type="checkbox" id="soundEnabled" checked>
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+        </div>
+
+        <div class="install-prompt" id="installPrompt">
+            <p>📱 Als App installieren für schnellen Zugriff!</p>
+            <button class="btn btn-primary" id="installBtn">Installieren</button>
+        </div>
+
+        <div class="footer">FokusPause • Für bessere Bildschirmzeit</div>
+    </div>
+
+    <!-- Lock Screen -->
+    <div class="lock-screen" id="lockScreen">
+        <div class="lock-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+        </div>
+        <h2 class="lock-title">Pausenzeit!</h2>
+        <p class="lock-subtitle">Zeit für eine Pause. Steh auf, streck dich, trink Wasser.</p>
+        <div class="lock-timer" id="lockTimer">10:00</div>
+        <div class="lock-timer-label">Bis zur Entsperrung</div>
+        <div class="emergency-unlock" id="emergencyUnlock">Notfall-Entsperrung (3× tippen)</div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        const state = {
+            workDuration: 90 * 60,
+            breakDuration: 10 * 60,
+            timeRemaining: 90 * 60,
+            breakTimeRemaining: 10 * 60,
+            isRunning: false,
+            isLocked: false,
+            autoStart: true,
+            soundEnabled: true,
+            interval: null,
+            breakInterval: null,
+            emergencyClicks: 0,
+            lastClickTime: 0,
+            deferredPrompt: null,
+            wakeLock: null
+        };
+
+        const el = {
+            timerDisplay: document.getElementById('timerDisplay'),
+            progressBar: document.getElementById('progressBar'),
+            statusBadge: document.getElementById('statusBadge'),
+            statusText: document.getElementById('statusText'),
+            startBtn: document.getElementById('startBtn'),
+            resetBtn: document.getElementById('resetBtn'),
+            fullscreenBtn: document.getElementById('fullscreenBtn'),
+            workTimeInput: document.getElementById('workTime'),
+            breakTimeInput: document.getElementById('breakTime'),
+            autoStartCheckbox: document.getElementById('autoStart'),
+            soundCheckbox: document.getElementById('soundEnabled'),
+            lockScreen: document.getElementById('lockScreen'),
+            lockTimer: document.getElementById('lockTimer'),
+            emergencyUnlock: document.getElementById('emergencyUnlock'),
+            toast: document.getElementById('toast'),
+            installPrompt: document.getElementById('installPrompt'),
+            installBtn: document.getElementById('installBtn')
+        };
+
+        function loadSettings() {
+            try {
+                const saved = localStorage.getItem('fokuspause-settings');
+                if (saved) {
+                    const s = JSON.parse(saved);
+                    state.workDuration = s.workDuration || 90 * 60;
+                    state.breakDuration = s.breakDuration || 10 * 60;
+                    state.autoStart = s.autoStart !== undefined ? s.autoStart : true;
+                    state.soundEnabled = s.soundEnabled !== undefined ? s.soundEnabled : true;
+                    el.workTimeInput.value = Math.floor(state.workDuration / 60);
+                    el.breakTimeInput.value = Math.floor(state.breakDuration / 60);
+                    el.autoStartCheckbox.checked = state.autoStart;
+                    el.soundCheckbox.checked = state.soundEnabled;
+                }
+            } catch (e) {}
+            state.timeRemaining = state.workDuration;
+            state.breakTimeRemaining = state.breakDuration;
+            updateDisplay();
+        }
+
+        function saveSettings() {
+            try {
+                localStorage.setItem('fokuspause-settings', JSON.stringify({
+                    workDuration: state.workDuration,
+                    breakDuration: state.breakDuration,
+                    autoStart: state.autoStart,
+                    soundEnabled: state.soundEnabled
+                }));
+            } catch (e) {}
+        }
+
+        function formatTime(s) {
+            const m = Math.floor(s / 60), sec = s % 60;
+            return `${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+        }
+
+        function updateDisplay() {
+            el.timerDisplay.textContent = formatTime(state.timeRemaining);
+            const progress = (state.timeRemaining / state.workDuration) * 100;
+            el.progressBar.style.width = `${progress}%`;
+
+            el.timerDisplay.classList.remove('active', 'warning', 'critical');
+            el.progressBar.classList.remove('warning');
+
+            if (state.timeRemaining <= 60) {
+                el.timerDisplay.classList.add('critical');
+                el.progressBar.classList.add('warning');
+            } else if (state.timeRemaining <= 300) {
+                el.timerDisplay.classList.add('warning');
+                el.progressBar.classList.add('warning');
+            } else {
+                el.timerDisplay.classList.add('active');
+            }
+
+            document.title = state.isRunning ? `${formatTime(state.timeRemaining)} - FokusPause` :
+                state.isLocked ? '⏸ Pause - FokusPause' : 'FokusPause';
+        }
+
+        function updateStatus(status) {
+            el.statusBadge.classList.remove('active', 'paused', 'locked');
+            el.statusBadge.classList.add(status);
+            el.statusText.textContent = { active: 'Läuft', paused: 'Pausiert', locked: 'Gesperrt' }[status] || 'Bereit';
+        }
+
+        async function requestWakeLock() {
+            if ('wakeLock' in navigator) {
+                try { state.wakeLock = await navigator.wakeLock.request('screen'); } catch (e) {}
+            }
+        }
+
+        function releaseWakeLock() {
+            if (state.wakeLock) { state.wakeLock.release(); state.wakeLock = null; }
+        }
+
+        function startTimer() {
+            if (state.isLocked) return;
+            state.isRunning = true;
+            el.startBtn.textContent = 'Pausieren';
+            updateStatus('active');
+            requestWakeLock();
+            state.interval = setInterval(() => {
+                if (state.timeRemaining > 0) { state.timeRemaining--; updateDisplay(); }
+                else { activateLockScreen(); }
+            }, 1000);
+        }
+
+        function pauseTimer() {
+            state.isRunning = false;
+            if (state.interval) { clearInterval(state.interval); state.interval = null; }
+            el.startBtn.textContent = 'Fortsetzen';
+            updateStatus('paused');
+            releaseWakeLock();
+        }
+
+        function resetTimer() {
+            pauseTimer();
+            state.timeRemaining = state.workDuration;
+            el.startBtn.textContent = 'Starten';
+            updateStatus('active');
+            el.statusText.textContent = 'Bereit';
+            updateDisplay();
+        }
+
+        function playNotification() {
+            if (!state.soundEnabled) return;
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator(), gain = ctx.createGain();
+                osc.connect(gain); gain.connect(ctx.destination);
+                osc.frequency.setValueAtTime(800, ctx.currentTime);
+                osc.frequency.setValueAtTime(600, ctx.currentTime + 0.1);
+                osc.frequency.setValueAtTime(800, ctx.currentTime + 0.2);
+                gain.gain.setValueAtTime(0.3, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+                osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.5);
+            } catch (e) {}
+        }
+
+        function vibrate() { if ('vibrate' in navigator) navigator.vibrate([200, 100, 200]); }
+
+        function activateLockScreen() {
+            pauseTimer();
+            state.isLocked = true;
+            state.breakTimeRemaining = state.breakDuration;
+            el.lockScreen.classList.add('active');
+            el.lockTimer.textContent = formatTime(state.breakTimeRemaining);
+            updateStatus('locked');
+
+            try {
+                const d = document.documentElement;
+                if (d.requestFullscreen) d.requestFullscreen();
+                else if (d.webkitRequestFullscreen) d.webkitRequestFullscreen();
+            } catch (e) {}
+
+            playNotification(); vibrate();
+
+            if ('Notification' in window && Notification.permission === 'granted') {
+                try { new Notification('FokusPause', { body: 'Zeit für eine Pause! 🧘', tag: 'fokuspause' }); } catch (e) {}
+            }
+
+            state.breakInterval = setInterval(() => {
+                if (state.breakTimeRemaining > 0) {
+                    state.breakTimeRemaining--;
+                    el.lockTimer.textContent = formatTime(state.breakTimeRemaining);
+                } else { deactivateLockScreen(); }
+            }, 1000);
+        }
+
+        function deactivateLockScreen() {
+            if (state.breakInterval) { clearInterval(state.breakInterval); state.breakInterval = null; }
+            state.isLocked = false;
+            state.emergencyClicks = 0;
+            el.lockScreen.classList.remove('active');
+            try {
+                if (document.exitFullscreen) document.exitFullscreen();
+                else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+            } catch (e) {}
+            resetTimer();
+            showToast('Pause beendet!');
+        }
+
+        function showToast(msg) {
+            el.toast.textContent = msg;
+            el.toast.classList.add('show');
+            setTimeout(() => el.toast.classList.remove('show'), 3000);
+        }
+
+        function toggleFullscreen() {
+            const d = document.documentElement;
+            if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+                if (d.requestFullscreen) d.requestFullscreen();
+                else if (d.webkitRequestFullscreen) d.webkitRequestFullscreen();
+            } else {
+                if (document.exitFullscreen) document.exitFullscreen();
+                else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+            }
+        }
+
+        // Events
+        el.startBtn.onclick = () => state.isRunning ? pauseTimer() : startTimer();
+        el.resetBtn.onclick = resetTimer;
+        el.fullscreenBtn.onclick = toggleFullscreen;
+
+        el.workTimeInput.onchange = () => {
+            const m = parseInt(el.workTimeInput.value) || 90;
+            state.workDuration = Math.max(1, Math.min(480, m)) * 60;
+            el.workTimeInput.value = Math.floor(state.workDuration / 60);
+            if (!state.isRunning) { state.timeRemaining = state.workDuration; updateDisplay(); }
+            saveSettings();
+        };
+
+        el.breakTimeInput.onchange = () => {
+            const m = parseInt(el.breakTimeInput.value) || 10;
+            state.breakDuration = Math.max(1, Math.min(60, m)) * 60;
+            el.breakTimeInput.value = Math.floor(state.breakDuration / 60);
+            saveSettings();
+        };
+
+        el.autoStartCheckbox.onchange = () => { state.autoStart = el.autoStartCheckbox.checked; saveSettings(); };
+        el.soundCheckbox.onchange = () => { state.soundEnabled = el.soundCheckbox.checked; saveSettings(); };
+
+        el.emergencyUnlock.onclick = () => {
+            const now = Date.now();
+            if (now - state.lastClickTime > 1000) state.emergencyClicks = 0;
+            state.lastClickTime = now;
+            state.emergencyClicks++;
+            if (state.emergencyClicks >= 3) { deactivateLockScreen(); showToast('Entsperrt'); }
+            else showToast(`Noch ${3 - state.emergencyClicks}× tippen`);
+        };
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                if (state.autoStart && !state.isRunning && !state.isLocked) {
+                    setTimeout(() => {
+                        if (document.visibilityState === 'visible' && !state.isRunning && !state.isLocked) {
+                            startTimer(); showToast('Auto-Start');
+                        }
+                    }, 500);
+                }
+                if (state.isRunning) requestWakeLock();
+            }
+        });
+
+        window.addEventListener('beforeunload', (e) => { if (state.isLocked) { e.preventDefault(); e.returnValue = ''; } });
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            state.deferredPrompt = e;
+            el.installPrompt.classList.add('show');
+        });
+
+        el.installBtn.onclick = async () => {
+            if (state.deferredPrompt) {
+                state.deferredPrompt.prompt();
+                const r = await state.deferredPrompt.userChoice;
+                if (r.outcome === 'accepted') showToast('App installiert!');
+                state.deferredPrompt = null;
+                el.installPrompt.classList.remove('show');
+            }
+        };
+
+        if ('Notification' in window && Notification.permission === 'default') {
+            setTimeout(() => Notification.requestPermission(), 3000);
+        }
+
+        loadSettings();
+        setTimeout(() => { if (state.autoStart) showToast('Auto-Start aktiv'); }, 1000);
+        if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+    </script>
+</body>
+</html>
